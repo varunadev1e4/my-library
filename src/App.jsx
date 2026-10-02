@@ -4,7 +4,6 @@ import { today, addDays, currentLoan, overdueDays, remindLink, toCSV, download, 
 import Stats from './Stats.jsx';
 import Borrowers from './Borrowers.jsx';
 import Goal from './Goal.jsx';
-import { useSpineColors } from './colors.js';
 
 const IDLE_MINUTES = 15; // auto-lock after this many idle minutes; set to 0 to turn off
 
@@ -12,10 +11,9 @@ const TABS = [['all', 'All'], ['read', 'Read'], ['reading', 'Reading'], ['to_rea
 const GENRES = ['Fiction', 'Nonfiction', 'Sci-Fi', 'Mystery & Thriller', 'Fantasy', 'Romance', 'Biography', 'Self-help', 'Telugu', 'Other'];
 
 const hash = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
-const look = (b, c) => {
+const look = (b) => {
   const h = hash(b.title + b.author);
   const o = { w: 24 + (h % 24), h: 200 + ((h >> 3) % 50), hue: h % 360, sat: 28 + ((h >> 5) % 25), lum: 24 + ((h >> 7) % 16), lean: -((h >> 9) % 4) };
-  if (c) { o.hue = c.h; o.sat = Math.min(70, Math.max(15, c.s)); o.lum = Math.min(50, Math.max(20, c.l)); }
   return o;
 };
 const SORTS = {
@@ -60,7 +58,7 @@ function PinGate({ onOk, theme, cycleTheme }) {
 }
 
 /* ---------- Shelf ---------- */
-function Shelf({ books, colors, onOpen }) {
+function Shelf({ books, onOpen }) {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
@@ -72,7 +70,7 @@ function Shelf({ books, colors, onOpen }) {
     <div className="shelf" ref={ref}>
       <div className="row">
         {books.map((b) => {
-          const s = look(b, colors[b.cover]); const lent = currentLoan(b);
+          const s = look(b); const lent = currentLoan(b);
           return (
             <button key={b.id} className="spine-hit" style={{ width: s.w, height: s.h }} onClick={() => onOpen(b.id)} aria-label={`${b.title} by ${b.author}`}>
               <span className="spine" style={{ background: `linear-gradient(90deg, hsl(${s.hue} ${s.sat}% ${s.lum + 6}%), hsl(${s.hue} ${s.sat}% ${s.lum}%) 40%, hsl(${s.hue} ${s.sat}% ${s.lum - 5}%))`, transform: `rotate(${s.lean}deg)` }}>
@@ -357,7 +355,6 @@ export default function App() {
   const [stats, setStats] = useState(false);
   const [borrowers, setBorrowers] = useState(false);
   const [goal, setGoal] = useState(0);
-  const spineColors = useSpineColors(books || []);
   const [theme, setTheme] = useState(() => localStorage.getItem('lib-theme') || 'auto');
   useEffect(() => {
     const el = document.documentElement;
@@ -441,7 +438,7 @@ export default function App() {
         </nav>
       </header>
 
-      {shown.length ? (view === 'shelf' ? <Shelf books={shown} colors={spineColors} onOpen={setOpenId} /> : <Grid books={shown} onOpen={setOpenId} />) : (
+      {shown.length ? (view === 'shelf' ? <Shelf books={shown} onOpen={setOpenId} /> : <Grid books={shown} onOpen={setOpenId} />) : (
         <p className="empty">{books.length ? 'No books match. Clear a filter or search.' : 'Your shelf is empty. Use Add books to paste your list or search one by one.'}</p>
       )}
 
