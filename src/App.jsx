@@ -22,7 +22,7 @@ const SORTS = {
 const SORT_LABELS = [['title', 'Title'], ['author', 'Author'], ['recent', 'Recently added'], ['rating', 'Rating'], ['finished', 'Date finished'], ['due', 'Due date']];
 
 /* ---------- PIN gate ---------- */
-function PinGate({ onOk }) {
+function PinGate({ onOk, theme, cycleTheme }) {
   const [v, setV] = useState('');
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
@@ -39,10 +39,11 @@ function PinGate({ onOk }) {
   }
   return (
     <main className="gate">
+      <button className="btn theme" onClick={cycleTheme}>Theme: {theme}</button>
       <p className="label">A personal archive</p>
       <h1 className="display">My library</h1>
       <label className="pin" aria-label="6-digit PIN">
-        <input autoFocus type="password" inputMode="numeric" autoComplete="current-password" value={v} onChange={change} disabled={busy} />
+        <input autoFocus type="tel" name="library-code" inputMode="numeric" autoComplete="off" autoCorrect="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" value={v} onChange={change} disabled={busy} />
         <span className="dots">{[0, 1, 2, 3, 4, 5].map((i) => <i key={i} className={i < v.length ? 'on' : ''} />)}</span>
       </label>
       <p className="err" role="alert">{busy ? 'Checking…' : err || 'Enter your 6-digit PIN'}</p>
@@ -305,6 +306,13 @@ export default function App() {
   const [sort, setSort] = useState('title');
   const [view, setView] = useState('shelf');
   const [stats, setStats] = useState(false);
+  const [theme, setTheme] = useState(() => localStorage.getItem('lib-theme') || 'auto');
+  useEffect(() => {
+    const el = document.documentElement;
+    theme === 'auto' ? el.removeAttribute('data-theme') : el.setAttribute('data-theme', theme);
+    theme === 'auto' ? localStorage.removeItem('lib-theme') : localStorage.setItem('lib-theme', theme);
+  }, [theme]);
+  const cycleTheme = () => setTheme((t) => (t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto'));
 
   useEffect(() => { if (getPin()) api.list().then(setBooks).catch(() => setPin('')); }, []);
   const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2500); };
@@ -317,7 +325,7 @@ export default function App() {
     return !n || [b.title, b.author, b.genre, b.notes, currentLoan(b)?.to].join(' ').toLowerCase().includes(n);
   }).sort(SORTS[tab === 'lent' && sort === 'title' ? 'due' : sort]), [books, tab, genre, q, sort]);
 
-  if (!books) return <PinGate onOk={setBooks} />;
+  if (!books) return <PinGate onOk={setBooks} theme={theme} cycleTheme={cycleTheme} />;
 
   const open = books.find((b) => b.id === openId);
   const step = (d) => { const i = shown.findIndex((b) => b.id === openId); if (i >= 0 && shown.length) setOpenId(shown[(i + d + shown.length) % shown.length].id); };
@@ -340,7 +348,8 @@ export default function App() {
         <div className="bar">
           <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, author, notes, borrower…" aria-label="Search" />
           <button className="btn primary" onClick={() => setAdding(true)}>Add books</button>
-          <button className="btn" onClick={() => { setPin(''); setBooks(null); }}>Lock</button>
+          <button className="btn" onClick={() => { setPin(''); window.location.reload(); }}>Lock</button>
+          <button className="btn" onClick={cycleTheme} aria-label="Change theme">Theme: {theme}</button>
         </div>
         <div className="tools">
           <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">{SORT_LABELS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}</select>
