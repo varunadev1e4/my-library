@@ -12,8 +12,8 @@ export function remindLink(book, loan) {
 
 const q = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 export function toCSV(books) {
-  const head = ['Title', 'Author', 'Genre', 'Language', 'Status', 'Rating', 'Year', 'Pages', 'Publisher', 'Finished', 'Notes', 'Lent to', 'Due', 'Times lent'];
-  const rows = books.map((b) => { const l = currentLoan(b); return [b.title, b.author, b.genre, b.language, b.status, b.rating, b.year, b.pages, b.publisher, b.finished_on, b.notes, l?.to, l?.due, (b.loans || []).length].map(q).join(','); });
+  const head = ['Title', 'Author', 'Genre', 'Language', 'Status', 'Rating', 'Year', 'Pages', 'Publisher', 'Finished', 'Notes', 'Location', 'Priority', 'Recommended by', 'Lent to', 'Due', 'Times lent'];
+  const rows = books.map((b) => { const l = currentLoan(b); return [b.title, b.author, b.genre, b.language, b.status, b.rating, b.year, b.pages, b.publisher, b.finished_on, b.notes, b.location, b.priority, b.recommended_by, l?.to, l?.due, (b.loans || []).length].map(q).join(','); });
   return [head.map(q).join(','), ...rows].join('\n');
 }
 export function download(name, text, type) {
@@ -21,3 +21,10 @@ export function download(name, text, type) {
   a.href = URL.createObjectURL(new Blob([text], { type }));
   a.download = name; a.click(); URL.revokeObjectURL(a.href);
 }
+
+export function remindAllLink(name, phone, titles) {
+  const list = titles.map((t) => `"${t}"`).join(', ');
+  const msg = `Hi ${name}, a gentle reminder about my ${titles.length > 1 ? 'books' : 'book'}: ${list}. Could you return ${titles.length > 1 ? 'them' : 'it'} when you can? Thanks!`;
+  return `https://wa.me/${(phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
+}
+export const priorityRank = (b) => (b.priority === 'up_next' ? 0 : b.priority === 'someday' ? 2 : 1);

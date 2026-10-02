@@ -32,3 +32,12 @@ export async function searchOpenLibrary(q) {
     cover: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : '',
   }));
 }
+
+async function sCall(method, body) {
+  const r = await fetch('/api/settings', { method, headers: { 'content-type': 'application/json', 'x-pin': getPin() }, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401) throw new Error('401');
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Request failed');
+  return j;
+}
+export const settings = { get: () => sCall('GET'), set: (key, value) => sCall('PUT', { key, value }) };

@@ -5,7 +5,7 @@ const sb = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_R
   auth: { persistSession: false },
 });
 
-const FIELDS = ['title', 'author', 'cover', 'year', 'publisher', 'blurb', 'genre', 'rating', 'status', 'notes', 'loans', 'pages', 'language', 'finished_on'];
+const FIELDS = ['title', 'author', 'cover', 'year', 'publisher', 'blurb', 'genre', 'rating', 'status', 'notes', 'loans', 'pages', 'language', 'finished_on', 'location', 'started_on', 'current_page', 'priority', 'recommended_by', 'quotes'];
 const pickFields = (o) => Object.fromEntries(FIELDS.filter((k) => k in o).map((k) => [k, o[k]]));
 
 function pinOk(pin) {

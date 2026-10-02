@@ -148,3 +148,26 @@ details.edit summary { cursor: pointer; color: var(--muted); }
 .theme { position: fixed; top: 14px; right: 14px; z-index: 60; }
 .gate .theme { top: 18px; right: 18px; }
 .btn.primary:focus-visible { outline-color: var(--fg); }
+
+/* v3 */
+.goal { display: inline-flex; align-items: center; gap: 10px; background: none; border: 0; padding: 4px 0; text-align: left; width: fit-content; }
+.goal svg circle { fill: none; stroke-width: 4; } .g-bg { stroke: var(--line); } .g-fg { stroke: var(--accent); stroke-linecap: round; transition: stroke-dasharray .6s; }
+.goal strong { font: 400 20px/1 var(--display); display: block; } .goal small { font-size: 12px; color: var(--muted); }
+.progress, .prog { display: block; height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+.progress b, .prog b { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.prog { height: 4px; margin-top: 4px; }
+.pg input { width: 80px; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; margin: 0 4px; }
+.card em.next { color: var(--accent); font-weight: 500; }
+.spine s.next { background: var(--accent); height: 4px; opacity: 1; }
+.quotes { display: grid; gap: 8px; }
+.quotes blockquote { margin: 0; padding: 4px 0 4px 14px; border-left: 3px solid var(--accent); font: italic 400 19px/1.35 var(--display); }
+.quotes footer { font: 400 12px var(--sans); color: var(--muted); display: flex; gap: 12px; align-items: center; }
+.quotes footer button { background: none; border: 0; color: var(--muted); text-decoration: underline; padding: 0; font-size: 12px; }
+.quotes form { display: grid; grid-template-columns: 1fr auto; gap: 8px; } .quotes form textarea { grid-column: 1 / -1; }
+.quotes form input { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; width: 90px; }
+.person { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--card); display: grid; gap: 8px; }
+.ph { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; align-items: baseline; } .ph strong { font: 500 22px/1 var(--display); }
+.person ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.person li { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+.person li button { background: none; border: 0; padding: 0; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.person .nav a { text-decoration: none; }
