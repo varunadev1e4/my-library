@@ -1,5 +1,8 @@
 export const getPin = () => localStorage.getItem('lib-pin') || '';
-export const setPin = (p) => (p ? localStorage.setItem('lib-pin', p) : localStorage.removeItem('lib-pin'));
+export const setPin = (p) => {
+  if (p) return localStorage.setItem('lib-pin', p);
+  ['lib-pin', 'lib-cache', 'lib-spines'].forEach((k) => localStorage.removeItem(k)); // locking also wipes the saved copy of your books
+};
 
 async function call(method, qs = '', body) {
   const r = await fetch('/api/books' + qs, {
@@ -55,3 +58,10 @@ export const journal = {
   update: (id, f) => jCall('PATCH', `?id=${id}`, f),
   remove: (id) => jCall('DELETE', `?id=${id}`),
 };
+
+// Open Library covers go through /api/cover so they are cached at the edge. Other URLs are used as they are.
+export function coverSrc(url, size = 'M') {
+  if (!url) return '';
+  try { if (new URL(url).hostname === 'covers.openlibrary.org') return '/api/cover?u=' + encodeURIComponent(url.replace(/-[SML]\.jpg/, `-${size}.jpg`)); } catch {}
+  return url;
+}

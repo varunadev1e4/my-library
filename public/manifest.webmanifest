@@ -1,6 +1,6 @@
 {
-  "name": "My Library",
-  "short_name": "Library",
+  "name": "Varun's Library",
+  "short_name": "Varun's Library",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#eef1ee",

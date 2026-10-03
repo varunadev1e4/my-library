@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { today } from './util.js';
+import { coverSrc } from './api.js';
 
 const count = (arr) => Object.entries(arr.reduce((m, k) => ((m[k] = (m[k] || 0) + 1), m), {})).sort((a, b) => b[1] - a[1]);
 const MONTHS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
@@ -53,7 +54,7 @@ export default function YearInBooks({ books, goals, onOpen, onClose }) {
             <div className="mini">
               {list.map((b) => (
                 <button key={b.id} onClick={() => { onClose(); onOpen(b.id); }} title={b.title}>
-                  {b.cover ? <img loading="lazy" src={b.cover.replace('-L', '-S')} alt={b.title} /> : <span>{b.title}</span>}
+                  {b.cover ? <img loading="lazy" src={coverSrc(b.cover, 'S')} alt={b.title} /> : <span>{b.title}</span>}
                 </button>
               ))}
             </div>

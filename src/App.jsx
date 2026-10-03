@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { api, settings, getPin, setPin, searchOpenLibrary } from './api.js';
+import { lazy, Suspense, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
+import { api, settings, getPin, setPin, searchOpenLibrary, coverSrc } from './api.js';
 import { today, addDays, currentLoan, overdueDays, remindLink, toCSV, download, priorityRank } from './util.js';
-import Stats from './Stats.jsx';
-import Borrowers from './Borrowers.jsx';
 import Goal from './Goal.jsx';
-import Journal from './Journal.jsx';
-import GoodreadsImport from './GoodreadsImport.jsx';
-import YearInBooks from './YearInBooks.jsx';
+import Logo from './Logo.jsx';
+
+// Loaded only when opened, so the first screen loads faster
+const Stats = lazy(() => import('./Stats.jsx'));
+const Borrowers = lazy(() => import('./Borrowers.jsx'));
+const Journal = lazy(() => import('./Journal.jsx'));
+const GoodreadsImport = lazy(() => import('./GoodreadsImport.jsx'));
+const YearInBooks = lazy(() => import('./YearInBooks.jsx'));
 
 const IDLE_MINUTES = 15; // auto-lock after this many idle minutes; set to 0 to turn off
 
@@ -57,8 +60,9 @@ function PinGate({ onOk, theme, cycleTheme }) {
   return (
     <main className="gate">
       <button className="btn theme" onClick={cycleTheme}>Theme: {theme}</button>
+      <Logo size={72} />
       <p className="label">A personal archive</p>
-      <h1 className="display">My library</h1>
+      <h1 className="display">Varun's library</h1>
       <label className="pin" aria-label="6-digit PIN">
         <input autoFocus type="tel" name="library-code" inputMode="numeric" autoComplete="off" autoCorrect="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" value={v} onChange={change} disabled={busy} />
         <span className="dots">{[0, 1, 2, 3, 4, 5].map((i) => <i key={i} className={i < v.length ? 'on' : ''} />)}</span>
@@ -69,7 +73,35 @@ function PinGate({ onOk, theme, cycleTheme }) {
 }
 
 /* ---------- Shelf ---------- */
-function Shelf({ books, onOpen }) {
+function Cover({ url, size = 'M', fb, ...rest }) {
+  const [bad, setBad] = useState(false);
+  useEffect(() => setBad(false), [url]);
+  if (!url || bad) return fb;
+  return <img src={coverSrc(url, size)} loading="lazy" decoding="async" onError={() => setBad(true)} {...rest} />;
+}
+
+function ReadingNow({ books, onOpen }) {
+  const list = books.filter((b) => b.status === 'reading');
+  if (!list.length) return null;
+  return (
+    <section className="nowreading" aria-label="Reading now">
+      <p className="label">Reading now</p>
+      <div className="nr-row no-scroll">
+        {list.map((b) => {
+          const pct = b.pages ? Math.min(100, Math.round(((b.current_page || 0) / b.pages) * 100)) : null;
+          return (
+            <button key={b.id} onClick={() => onOpen(b.id)}>
+              <Cover url={b.cover} size="S" alt="" fb={<span className="thumb" />} />
+              <span><strong>{b.title}</strong><small>{b.author}</small>{pct !== null && <><i className="prog"><b style={{ width: `${pct}%` }} /></i><small>{pct}% read</small></>}</span>
+            </button>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function Shelf({ books, sel, onOpen }) {
   const ref = useRef(null);
   useEffect(() => {
     const el = ref.current;
@@ -83,7 +115,7 @@ function Shelf({ books, onOpen }) {
         {books.map((b) => {
           const s = look(b); const lent = currentLoan(b);
           return (
-            <button key={b.id} className="spine-hit" style={{ width: s.w, height: s.h }} onClick={() => onOpen(b.id)} aria-label={`${b.title} by ${b.author}`}>
+            <button key={b.id} className={`spine-hit${sel?.has(b.id) ? ' sel' : ''}`} style={{ width: s.w, height: s.h }} onClick={() => onOpen(b.id)} aria-label={`${b.title} by ${b.author}`}>
               <span className="spine" style={{ background: `linear-gradient(90deg, hsl(${s.hue} ${s.sat}% ${s.lum + 6}%), hsl(${s.hue} ${s.sat}% ${s.lum}%) 40%, hsl(${s.hue} ${s.sat}% ${s.lum - 5}%))`, transform: `rotate(${s.lean}deg)` }}>
                 <b>{b.title}</b>
                 {s.w > 34 && <em>{b.author}</em>}
@@ -101,14 +133,14 @@ function Shelf({ books, onOpen }) {
 }
 
 /* ---------- Grid ---------- */
-function Grid({ books, onOpen }) {
+function Grid({ books, sel, onOpen }) {
   return (
     <div className="grid">
       {books.map((b) => {
         const s = look(b); const lent = currentLoan(b); const late = overdueDays(b);
         return (
-          <button key={b.id} className="card" onClick={() => onOpen(b.id)}>
-            {b.cover ? <img loading="lazy" src={b.cover.replace('-L', '-M')} alt="" /> : <div className="nocover sm" style={{ background: `hsl(${s.hue} ${s.sat}% ${s.lum}%)` }}><b>{b.title}</b></div>}
+          <button key={b.id} className={`card${sel?.has(b.id) ? ' sel' : ''}`} onClick={() => onOpen(b.id)}>
+            <Cover url={b.cover} size="M" alt="" fb={<div className="nocover sm" style={{ background: `hsl(${s.hue} ${s.sat}% ${s.lum}%)` }}><b>{b.title}</b></div>} />
             <strong>{b.title}</strong><span>{b.author}</span>
             {lent && <em className={late ? 'late' : ''}>{late ? `${late}d overdue · ` : 'With '}{lent.to}</em>}
             {b.status === 'reading' && b.pages ? <i className="prog"><b style={{ width: `${Math.min(100, ((b.current_page || 0) / b.pages) * 100)}%` }} /></i> : null}
@@ -141,6 +173,9 @@ function Detail({ book, people, locations, allShelves, onClose, onPatch, onDelet
   const [phone, setPhone] = useState('');
   const [days, setDays] = useState('14');
   const [sh, setSh] = useState('');
+  const [covers, setCovers] = useState(null);
+  useEffect(() => setCovers(null), [book.id]);
+  const findCovers = async () => { setCovers([]); try { setCovers((await searchOpenLibrary(`${book.title} ${book.author}`.trim())).filter((x) => x.cover)); } catch { setCovers([]); } };
   const [qt, setQt] = useState('');
   const [qp, setQp] = useState('');
   const [notes, setNotes] = useState(book.notes);
@@ -162,7 +197,13 @@ function Detail({ book, people, locations, allShelves, onClose, onPatch, onDelet
     <div className="modal" onClick={onClose}>
       <article className="detail" onClick={(e) => e.stopPropagation()}>
         <div className="cover">
-          {book.cover ? <img src={book.cover} alt={`Cover of ${book.title}`} /> : <div className="nocover" style={{ background: `hsl(${s.hue} ${s.sat}% ${s.lum}%)` }}><b>{book.title}</b><em>{book.author}</em></div>}
+          <Cover url={book.cover} size="L" alt={`Cover of ${book.title}`} fb={<div className="nocover" style={{ background: `hsl(${s.hue} ${s.sat}% ${s.lum}%)` }}><b>{book.title}</b><em>{book.author}</em></div>} />
+          <div className="nav"><button className="btn" onClick={findCovers}>Change cover</button>{book.cover && <button className="btn" onClick={() => onPatch(book.id, { cover: '' })}>Remove</button>}</div>
+          {covers && (
+            <div className="coverpick">
+              {covers.length ? covers.map((c, i) => <button key={i} onClick={() => { onPatch(book.id, { cover: c.cover }); setCovers(null); }}><img src={coverSrc(c.cover, 'S')} alt={`Cover option ${i + 1}`} /></button>) : <p className="label">Searching, or no other covers found.</p>}
+            </div>
+          )}
         </div>
         <div className="info">
           <button className="x" onClick={onClose} aria-label="Close">×</button>
@@ -353,7 +394,7 @@ function AddDialog({ books, genres, onClose, onAdded }) {
             <ul className="results">
               {res.map((r, i) => (
                 <li key={i}><button onClick={() => add(r)}>
-                  {r.cover ? <img src={r.cover.replace('-L', '-S')} alt="" /> : <span className="thumb" />}
+                  <Cover url={r.cover} size="S" alt="" fb={<span className="thumb" />} />
                   <span><strong>{r.title}</strong><br />{r.author}{r.year ? ` · ${r.year}` : ''}{has(r.title) && <em className="dup"> · already in your library</em>}</span>
                 </button></li>
               ))}
@@ -374,15 +415,20 @@ function AddDialog({ books, genres, onClose, onAdded }) {
 
 /* ---------- App ---------- */
 export default function App() {
-  const [books, setBooks] = useState(null);
+  const [books, setBooks] = useState(() => { if (!getPin()) return null; try { return JSON.parse(localStorage.getItem('lib-cache') || 'null'); } catch { return null; } });
   const [tab, setTab] = useState('all');
   const [genre, setGenre] = useState('');
   const [q, setQ] = useState('');
+  const dq = useDeferredValue(q);
   const [openId, setOpenId] = useState(null);
   const [adding, setAdding] = useState(false);
-  const [toast, setToast] = useState('');
-  const [sort, setSort] = useState('title');
-  const [view, setView] = useState('shelf');
+  const [toast, setToast] = useState(null);
+  const flashT = useRef();
+  const [checking, setChecking] = useState(() => !!getPin());
+  const [selecting, setSelecting] = useState(false);
+  const [sel, setSel] = useState(() => new Set());
+  const [sort, setSort] = useState(() => localStorage.getItem('lib-sort') || 'title');
+  const [view, setView] = useState(() => localStorage.getItem('lib-view') || 'shelf');
   const [stats, setStats] = useState(false);
   const [borrowers, setBorrowers] = useState(false);
   const [goalData, setGoalData] = useState({ target: 0, byYear: {} });
@@ -398,7 +444,16 @@ export default function App() {
   }, [theme]);
   const cycleTheme = () => setTheme((t) => (t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto'));
 
-  useEffect(() => { if (getPin()) api.list().then(setBooks).catch(() => setPin('')); }, []);
+  useEffect(() => {
+    if (!getPin()) return;
+    api.list().then(setBooks).catch((e) => { if (e.message === '401') { setPin(''); setBooks(null); } else flash('Offline. Showing your last saved copy.'); }).finally(() => setChecking(false));
+  }, []);
+  useEffect(() => { if (books) try { localStorage.setItem('lib-cache', JSON.stringify(books)); } catch {} }, [books]);
+  useEffect(() => { localStorage.setItem('lib-sort', sort); localStorage.setItem('lib-view', view); }, [sort, view]);
+  useEffect(() => {
+    const k = (e) => { if (e.key === '/' && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName || '')) { e.preventDefault(); document.querySelector('.search')?.focus(); } };
+    window.addEventListener('keydown', k); return () => window.removeEventListener('keydown', k);
+  }, []);
   useEffect(() => { if (books) settings.get().then((s) => setGoalData({ target: s.goal?.target || 0, byYear: s.goal?.byYear || {} })).catch(() => {}); }, [!!books]);
   useEffect(() => {
     if (!books || !IDLE_MINUTES) return;
@@ -411,18 +466,18 @@ export default function App() {
     document.addEventListener('visibilitychange', vis); reset();
     return () => { clearTimeout(t); evs.forEach((e) => window.removeEventListener(e, reset)); document.removeEventListener('visibilitychange', vis); };
   }, [!!books]);
-  const flash = (m) => { setToast(m); setTimeout(() => setToast(''), 2500); };
+  const flash = (msg, undo) => { setToast({ msg, undo }); clearTimeout(flashT.current); flashT.current = setTimeout(() => setToast(null), undo ? 8000 : 2500); };
 
   const genres = useMemo(() => [...new Set((books || []).map((b) => b.genre))].sort(), [books]);
   const shown = useMemo(() => (books || []).filter((b) => {
     if (tab === 'lent' ? !currentLoan(b) : tab !== 'all' && b.status !== tab) return false;
     if (genre && b.genre !== genre) return false;
     if (shelf && !(b.shelves || []).includes(shelf)) return false;
-    const n = q.trim().toLowerCase();
+    const n = dq.trim().toLowerCase();
     return !n || [b.title, b.author, b.genre, b.notes, b.location, b.recommended_by, b.series, b.isbn, (b.shelves || []).join(' '), (b.quotes || []).map((x) => x.t).join(' '), currentLoan(b)?.to].join(' ').toLowerCase().includes(n);
-  }).sort(SORTS[tab === 'lent' && sort === 'title' ? 'due' : sort]), [books, tab, genre, shelf, q, sort]);
+  }).sort(SORTS[tab === 'lent' && sort === 'title' ? 'due' : sort]), [books, tab, genre, shelf, dq, sort]);
 
-  if (!books) return <PinGate onOk={setBooks} theme={theme} cycleTheme={cycleTheme} />;
+  if (!books) return checking ? <main className="gate"><Logo size={72} /><p className="label">Opening your library…</p></main> : <PinGate onOk={setBooks} theme={theme} cycleTheme={cycleTheme} />;
 
   const open = books.find((b) => b.id === openId);
   const step = (d) => { const i = shown.findIndex((b) => b.id === openId); if (i >= 0 && shown.length) setOpenId(shown[(i + d + shown.length) % shown.length].id); };
@@ -430,7 +485,32 @@ export default function App() {
     const prev = books; setBooks((bs) => bs.map((b) => (b.id === id ? { ...b, ...f } : b)));
     try { await api.update(id, f); } catch (e) { setBooks(prev); flash('Could not save: ' + e.message); }
   };
-  const del = async (id) => { try { await api.remove(id); setBooks((bs) => bs.filter((b) => b.id !== id)); setOpenId(null); } catch (e) { flash(e.message); } };
+  const del = async (id) => {
+    const gone = books.find((b) => b.id === id);
+    try {
+      await api.remove(id); setBooks((bs) => bs.filter((b) => b.id !== id)); setOpenId(null);
+      flash(`Deleted "${gone.title}"`, async () => {
+        try { const { id: _drop, ...rest } = gone; const [row] = await api.add(rest); setBooks((bs) => [row, ...bs]); flash('Restored'); } catch (e) { flash('Could not restore: ' + e.message); }
+      });
+    } catch (e) { flash(e.message); }
+  };
+  const toggleSel = (id) => setSel((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const exitSelect = () => { setSelecting(false); setSel(new Set()); };
+  const bulk = async (fn) => {
+    if (!sel.size) return flash('Select some books first.');
+    const prev = books;
+    const patches = new Map(prev.filter((b) => sel.has(b.id)).map((b) => [b.id, fn(b)]));
+    setBooks((bs) => bs.map((b) => (patches.has(b.id) ? { ...b, ...patches.get(b.id) } : b)));
+    try {
+      const entries = [...patches];
+      for (let i = 0; i < entries.length; i += 6) await Promise.all(entries.slice(i, i + 6).map(([id, f]) => api.update(id, f)));
+      flash(`Updated ${entries.length} book${entries.length > 1 ? 's' : ''}`);
+    } catch (e) { setBooks(prev); flash('Could not save: ' + e.message); }
+  };
+  const bulkDelete = async () => {
+    const ids = [...sel]; if (!ids.length || !confirm(`Delete ${ids.length} book${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    try { for (let i = 0; i < ids.length; i += 6) await Promise.all(ids.slice(i, i + 6).map((id) => api.remove(id))); setBooks((bs) => bs.filter((b) => !sel.has(b.id))); flash(`Deleted ${ids.length}`); exitSelect(); } catch (e) { flash(e.message); }
+  };
   const lentCount = books.filter(currentLoan).length;
   const lateCount = books.filter(overdueDays).length;
   const locations = [...new Set(books.map((b) => b.location).filter(Boolean))].sort();
@@ -452,8 +532,10 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <p className="label">A personal archive</p>
-        <h1 className="display">My library</h1>
+        <div className="brand">
+          <Logo size={52} />
+          <div><p className="label">A personal archive</p><h1 className="display">Varun's library</h1></div>
+        </div>
         <p className="label">{books.length} volumes{lentCount ? ` · ${lentCount} lent out` : ''}{lateCount ? ` · ${lateCount} overdue` : ''}</p>
         <Goal books={books} target={goalTarget} year={goalYear} carried={goalCarried} onSet={setGoalPrompt} />
         <div className="bar">
@@ -466,6 +548,7 @@ export default function App() {
           <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">{SORT_LABELS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}</select>
           <button className="btn" onClick={() => setView(view === 'shelf' ? 'grid' : 'shelf')}>{view === 'shelf' ? 'Grid view' : 'Shelf view'}</button>
           <button className="btn" onClick={pick}>Pick my next read</button>
+          <button className="btn" onClick={() => (selecting ? exitSelect() : setSelecting(true))}>{selecting ? 'Cancel select' : 'Select'}</button>
           <button className="btn" onClick={() => setJournalOpen(true)}>Journal</button>
           <button className="btn" onClick={() => setYearOpen(true)}>Year in books</button>
           <button className="btn" onClick={() => setImporting(true)}>Import Goodreads</button>
@@ -489,18 +572,36 @@ export default function App() {
         )}
       </header>
 
-      {shown.length ? (view === 'shelf' ? <Shelf books={shown} onOpen={setOpenId} /> : <Grid books={shown} onOpen={setOpenId} />) : (
+      {tab === 'all' && !genre && !shelf && !dq.trim() && !selecting && <ReadingNow books={books} onOpen={setOpenId} />}
+      {shown.length ? (view === 'shelf' ? <Shelf books={shown} sel={selecting ? sel : null} onOpen={selecting ? toggleSel : setOpenId} /> : <Grid books={shown} sel={selecting ? sel : null} onOpen={selecting ? toggleSel : setOpenId} />) : (
         <p className="empty">{books.length ? 'No books match. Clear a filter or search.' : 'Your shelf is empty. Use Add books to paste your list or search one by one.'}</p>
       )}
 
       {open && <Detail book={open} people={people} locations={locations} allShelves={allShelves} onClose={() => setOpenId(null)} onPatch={patch} onDelete={del} onPrev={() => step(-1)} onNext={() => step(1)} />}
       {adding && <AddDialog books={books} genres={genres} onClose={() => setAdding(false)} onAdded={(rows, skipped = 0) => { setBooks((bs) => [...rows, ...bs]); flash(`Added ${rows.length} book${rows.length > 1 ? 's' : ''}${skipped ? `, skipped ${skipped} duplicate${skipped > 1 ? 's' : ''}` : ''}`); }} />}
+      <Suspense fallback={null}>
       {stats && <Stats books={books} onClose={() => setStats(false)} />}
       {yearOpen && <YearInBooks books={books} goals={goalData.byYear} onOpen={setOpenId} onClose={() => setYearOpen(false)} />}
       {importing && <GoodreadsImport books={books} genres={GENRES} onClose={() => setImporting(false)} onAdded={(rows, skipped = 0) => { setBooks((bs) => [...rows, ...bs]); flash(`Imported ${rows.length} book${rows.length === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} duplicate${skipped > 1 ? 's' : ''}` : ''}`); }} />}
       {journalOpen && <Journal books={books} onPatch={patch} onClose={() => setJournalOpen(false)} />}
       {borrowers && <Borrowers books={books} people={people} onOpen={setOpenId} onPatch={patch} onClose={() => setBorrowers(false)} />}
-      {toast && <div className="toast" role="status">{toast}</div>}
+      </Suspense>
+      {selecting && (
+        <div className="bulkbar" role="region" aria-label="Edit several books">
+          <strong>{sel.size} selected</strong>
+          <button className="btn" onClick={() => setSel(new Set(shown.map((b) => b.id)))}>Select all {shown.length}</button>
+          <select value="" aria-label="Set genre" onChange={(e) => { const g = pickGenre(e.target.value); if (g) bulk(() => ({ genre: g })); }}>
+            <option value="">Set genre…</option>{[...new Set([...GENRES, ...genres])].map((g) => <option key={g}>{g}</option>)}<option value="__new">+ New genre…</option>
+          </select>
+          <select value="" aria-label="Set status" onChange={(e) => { const v = e.target.value; if (v) bulk(() => ({ status: v })); }}>
+            <option value="">Set status…</option><option value="read">Read</option><option value="reading">Reading now</option><option value="to_read">Read list</option>
+          </select>
+          <button className="btn" onClick={() => { const s = (window.prompt('Add the selected books to which shelf?') || '').trim().toLowerCase(); if (s) bulk((b) => ({ shelves: [...new Set([...(b.shelves || []), s])] })); }}>Add to shelf…</button>
+          <button className="btn danger" onClick={bulkDelete}>Delete</button>
+          <button className="btn" onClick={exitSelect}>Done</button>
+        </div>
+      )}
+      {toast && <div className="toast" role="status">{toast.msg}{toast.undo && <button onClick={() => { const u = toast.undo; setToast(null); u(); }}>Undo</button>}</div>}
     </div>
   );
 }
