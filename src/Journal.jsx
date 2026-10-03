@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { journal } from './api.js';
+import { askConfirm } from './dialogs.jsx';
 import { today, addDays, streak } from './util.js';
 
 const byDay = (a, b) => b.day.localeCompare(a.day) || (b.created_at || '').localeCompare(a.created_at || '');
@@ -43,7 +44,7 @@ export default function Journal({ books, onPatch, onClose }) {
         const patch = { current_page: p };
         if (book.status === 'to_read') { patch.status = 'reading'; if (!book.started_on) patch.started_on = day; }
         onPatch(book.id, patch);
-        if (book.pages && p >= book.pages && book.status !== 'read' && confirm(`You're on the last page of "${book.title}". Mark it as read?`)) onPatch(book.id, { status: 'read', finished_on: day });
+        if (book.pages && p >= book.pages && book.status !== 'read' && (await askConfirm({ title: 'Finished the book?', message: `You're on the last page of "${book.title}". Mark it as read?`, confirmLabel: 'Mark as read' }))) onPatch(book.id, { status: 'read', finished_on: day });
       }
       setPages(''); setPageNow(''); setText('');
     } catch (x) { setErr(x.message); }
@@ -53,7 +54,7 @@ export default function Journal({ books, onPatch, onClose }) {
     try { const row = await journal.update(id, { text: etext.trim() }); setRows((r) => r.map((x) => (x.id === id ? row : x))); setEditing(null); } catch (x) { setErr(x.message); }
   }
   async function del(id) {
-    if (!confirm('Delete this entry?')) return;
+    if (!(await askConfirm({ title: 'Delete this entry?', confirmLabel: 'Delete', danger: true }))) return;
     try { await journal.remove(id); setRows((r) => r.filter((x) => x.id !== id)); } catch (x) { setErr(x.message); }
   }
 

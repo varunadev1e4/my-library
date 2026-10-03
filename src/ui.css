@@ -123,3 +123,35 @@ input, select, textarea { border-radius: 10px; }
   .efs { grid-template-columns: 1fr; }
   .summary { padding-bottom: 10px; }
 }
+
+/* ===== v8: dark-mode readability + in-page dialogs ===== */
+:root { --track: color-mix(in srgb, var(--fg) 16%, transparent); --accent-text: #a8430f; --on-danger: #ffffff; }
+:root[data-theme="dark"] { --accent-text: var(--accent); --on-danger: #2a0d0a; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --accent-text: var(--accent); --on-danger: #2a0d0a; } }
+
+/* Every dropdown gets a solid background and text colour, so the opened list is readable in both themes */
+select, select option, select optgroup { background-color: var(--card); color: var(--fg); }
+select optgroup { color: var(--muted); font-style: normal; }
+.sortsel { background-color: var(--card); color: var(--fg); }
+::placeholder { color: var(--muted); opacity: .85; }
+input:-webkit-autofill, textarea:-webkit-autofill, select:-webkit-autofill { -webkit-text-fill-color: var(--fg); caret-color: var(--fg); box-shadow: 0 0 0 100px var(--card) inset; }
+input[type="date"], input[type="number"], input[type="file"], input[type="tel"], input[type="text"], textarea { color: var(--fg); }
+
+/* Low-contrast spots found in the audit */
+.stars button { color: color-mix(in srgb, var(--muted) 55%, transparent); }
+.stars button.on { color: var(--accent); }
+.progress, .prog, .months b + span { background: var(--track); }
+.progress b, .prog b { background: var(--accent); }
+.g-bg { stroke: var(--track); }
+.thumb, .results .thumb, .nr-row .thumb { background: var(--track); }
+.tabs button.on .n, .dup, .card em.next { color: var(--accent-text); }
+.chip, .fchip { color: var(--fg); }
+
+/* In-page dialogs (replace browser pop-ups) */
+.modal.top { z-index: 120; }
+.dialog.small { max-width: 420px; gap: 14px; }
+.dialog.small .display { font-size: 30px; margin: 0; }
+.dlg-msg { margin: 0; color: var(--muted); overflow-wrap: anywhere; }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.btn.danger.solid { background: var(--danger); border-color: var(--danger); color: var(--on-danger); }
+.btn.danger.solid:hover { background: var(--danger); filter: brightness(1.08); }

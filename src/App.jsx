@@ -4,6 +4,7 @@ import { today, addDays, currentLoan, overdueDays, remindLink, toCSV, download, 
 import Goal from './Goal.jsx';
 import Logo from './Logo.jsx';
 import Icon from './Icon.jsx';
+import DialogHost, { askText, askConfirm } from './dialogs.jsx';
 
 // Loaded only when opened, so the first screen loads faster
 const Stats = lazy(() => import('./Stats.jsx'));
@@ -23,7 +24,7 @@ const GENRES = [
   'Health & Fitness', 'Food & Cooking', 'Travel', 'Art & Design', 'Music & Film', 'Education', 'Law', 'Essays', 'Sports', 'Parenting & Family', 'Reference',
   'Indian Literature', 'Telugu', 'Hindi', 'Other',
 ];
-const pickGenre = (v) => (v === '__new' ? (window.prompt('Name of the new genre?') || '').trim() : v);
+const pickGenre = async (v) => (v === '__new' ? ((await askText({ title: 'New genre', label: 'Genre name', placeholder: 'e.g. Business biographies', confirmLabel: 'Add genre' })) || '').trim() : v);
 
 const hash = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 const look = (b) => {
@@ -324,7 +325,7 @@ function Detail({ book, people, locations, allShelves, onClose, onPatch, onDelet
             <div className="panel">
               <div className="row">
                 <label className="ef"><span>Genre</span>
-                  <select value={book.genre} onChange={(e) => { const g = pickGenre(e.target.value); if (g) onPatch(book.id, { genre: g }); }} aria-label="Genre">
+                  <select value={book.genre} onChange={async (e) => { const g = await pickGenre(e.target.value); if (g) onPatch(book.id, { genre: g }); }} aria-label="Genre">
                     {[...new Set([book.genre, ...GENRES])].map((g) => <option key={g}>{g}</option>)}
                     <option value="__new">+ Add new genre…</option>
                   </select>
@@ -359,7 +360,7 @@ function Detail({ book, people, locations, allShelves, onClose, onPatch, onDelet
                 <F book={book} k="read_count" label="Times read" type="number" onPatch={onPatch} />
                 <F book={book} k="cover" label="Cover image URL" onPatch={onPatch} />
               </div>
-              <button className="btn danger delete" onClick={() => confirm(`Delete "${book.title}"?`) && onDelete(book.id)}><Icon name="trash" /> Delete this book</button>
+              <button className="btn danger delete" onClick={async () => (await askConfirm({ title: 'Delete this book?', message: `"${book.title}" will be removed from your library. You can undo for a few seconds afterwards.`, confirmLabel: 'Delete', danger: true })) && onDelete(book.id)}><Icon name="trash" /> Delete this book</button>
             </div>
           )}
         </div>
@@ -425,7 +426,7 @@ function AddDialog({ books, genres, onClose, onAdded }) {
           <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
             <option value="read">Already read</option><option value="reading">Reading now</option><option value="to_read">Read list</option>
           </select>
-          <select value={genre} onChange={(e) => { const g = pickGenre(e.target.value); if (g) setGenre(g); }} aria-label="Genre">{[...new Set([genre, ...GENRES, ...genres])].map((g) => <option key={g}>{g}</option>)}<option value="__new">+ Add new genre…</option></select>
+          <select value={genre} onChange={async (e) => { const g = await pickGenre(e.target.value); if (g) setGenre(g); }} aria-label="Genre">{[...new Set([genre, ...GENRES, ...genres])].map((g) => <option key={g}>{g}</option>)}<option value="__new">+ Add new genre…</option></select>
           <input className="rec" value={recBy} onChange={(e) => setRecBy(e.target.value)} placeholder="Recommended by (optional)" aria-label="Recommended by" />
         </div>
         {mode === 'one' ? (
@@ -552,7 +553,8 @@ export default function App() {
     } catch (e) { setBooks(prev); flash('Could not save: ' + e.message); }
   };
   const bulkDelete = async () => {
-    const ids = [...sel]; if (!ids.length || !confirm(`Delete ${ids.length} book${ids.length > 1 ? 's' : ''}? This cannot be undone.`)) return;
+    const ids = [...sel]; if (!ids.length) return;
+    if (!(await askConfirm({ title: `Delete ${ids.length} book${ids.length > 1 ? 's' : ''}?`, message: 'This cannot be undone.', confirmLabel: 'Delete', danger: true }))) return;
     try { for (let i = 0; i < ids.length; i += 6) await Promise.all(ids.slice(i, i + 6).map((id) => api.remove(id))); setBooks((bs) => bs.filter((b) => !sel.has(b.id))); flash(`Deleted ${ids.length}`); exitSelect(); } catch (e) { flash(e.message); }
   };
   const lentCount = books.filter(currentLoan).length;
@@ -566,8 +568,8 @@ export default function App() {
   const goalYear = today().slice(0, 4);
   const goalTarget = goalData.byYear[goalYear] ?? goalData.target ?? 0; // new year: last goal carries over until you change it
   const goalCarried = goalData.byYear[goalYear] == null && goalTarget > 0;
-  const setGoalPrompt = () => {
-    const t = window.prompt(`How many books do you want to finish in ${goalYear}?`, goalTarget || 24);
+  const setGoalPrompt = async () => {
+    const t = await askText({ title: `Reading goal for ${goalYear}`, label: 'Books you want to finish this year', initial: String(goalTarget || 24), type: 'number', min: 0, confirmLabel: 'Save goal' });
     if (t === null) return;
     const n = Math.max(0, parseInt(t, 10) || 0);
     const next = { target: n, byYear: { ...goalData.byYear, [goalYear]: n } };
@@ -695,17 +697,18 @@ export default function App() {
         <div className="bulkbar" role="region" aria-label="Edit several books">
           <strong>{sel.size} selected</strong>
           <button className="btn" onClick={() => setSel(new Set(shown.map((b) => b.id)))}>Select all {shown.length}</button>
-          <select value="" aria-label="Set genre" onChange={(e) => { const g = pickGenre(e.target.value); if (g) bulk(() => ({ genre: g })); }}>
+          <select value="" aria-label="Set genre" onChange={async (e) => { const g = await pickGenre(e.target.value); if (g) bulk(() => ({ genre: g })); }}>
             <option value="">Set genre…</option>{[...new Set([...GENRES, ...genres])].map((g) => <option key={g}>{g}</option>)}<option value="__new">+ New genre…</option>
           </select>
           <select value="" aria-label="Set status" onChange={(e) => { const v = e.target.value; if (v) bulk(() => ({ status: v })); }}>
             <option value="">Set status…</option><option value="read">Read</option><option value="reading">Reading now</option><option value="to_read">Read list</option>
           </select>
-          <button className="btn" onClick={() => { const s = (window.prompt('Add the selected books to which shelf?') || '').trim().toLowerCase(); if (s) bulk((b) => ({ shelves: [...new Set([...(b.shelves || []), s])] })); }}>Add to shelf…</button>
+          <button className="btn" onClick={async () => { const s = ((await askText({ title: 'Add to shelf', label: `Shelf name (for ${sel.size} selected)`, placeholder: 'e.g. favourites', confirmLabel: 'Add to shelf' })) || '').trim().toLowerCase(); if (s) bulk((b) => ({ shelves: [...new Set([...(b.shelves || []), s])] })); }}>Add to shelf…</button>
           <button className="btn danger" onClick={bulkDelete}>Delete</button>
           <button className="btn" onClick={exitSelect}>Done</button>
         </div>
       )}
+      <DialogHost />
       {toast && <div className="toast" role="status">{toast.msg}{toast.undo && <button onClick={() => { const u = toast.undo; setToast(null); u(); }}>Undo</button>}</div>}
     </div>
   );

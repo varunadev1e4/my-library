@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { askConfirm } from './dialogs.jsx';
 import { currentLoan, overdueDays, remindAllLink, today } from './util.js';
 
 export default function Borrowers({ books, people, onOpen, onPatch, onClose }) {
@@ -31,7 +32,7 @@ export default function Borrowers({ books, people, onOpen, onPatch, onClose }) {
             </ul>
             <div className="nav">
               <a className="btn" href={remindAllLink(n, people[n], now[n].map((x) => x.b.title))} target="_blank" rel="noreferrer">Remind about {now[n].length > 1 ? 'all' : 'it'} on WhatsApp</a>
-              <button className="btn" onClick={() => confirm(`Mark all of ${n}'s books as returned?`) && returnAll(n)}>Mark {now[n].length > 1 ? 'all ' : ''}returned</button>
+              <button className="btn" onClick={async () => (await askConfirm({ title: `Mark ${n}'s books as returned?`, message: now[n].map((x) => x.b.title).join(', '), confirmLabel: 'Mark returned' })) && returnAll(n)}>Mark {now[n].length > 1 ? 'all ' : ''}returned</button>
             </div>
           </section>
         ))}
