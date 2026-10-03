@@ -98,7 +98,7 @@ input, select, textarea { border-radius: 10px; }
 .dtabs button { background: none; border: 0; padding: 9px 14px; color: var(--muted); font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -1px; }
 .dtabs button.on { color: var(--fg); border-color: var(--accent); }
 .panel { display: grid; gap: 16px; animation: fade .2s; }
-.row { display: grid; } .row select { background: var(--card); border: 1px solid var(--line); padding: 9px 12px; }
+.panel .row { display: grid; } .panel .row select { background: var(--card); border: 1px solid var(--line); padding: 9px 12px; }
 .lend { border-radius: var(--r); }
 .efs { grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 0; }
 .efs .ef:last-child { grid-column: 1 / -1; }
