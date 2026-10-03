@@ -1,4 +1,5 @@
-export const today = () => new Date().toISOString().slice(0, 10);
+// Local calendar date (not UTC), so late-night entries in India don't land on the previous day
+export const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10); };
 export const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 export const daysBetween = (a, b) => Math.round((new Date(b + 'T00:00:00Z') - new Date(a + 'T00:00:00Z')) / 864e5);
 export const currentLoan = (b) => { const l = (b.loans || []).at(-1); return l && !l.returned ? l : null; };
@@ -28,3 +29,10 @@ export function remindAllLink(name, phone, titles) {
   return `https://wa.me/${(phone || '').replace(/\D/g, '')}?text=${encodeURIComponent(msg)}`;
 }
 export const priorityRank = (b) => (b.priority === 'up_next' ? 0 : b.priority === 'someday' ? 2 : 1);
+
+// Consecutive days with an entry, counting back from today (or yesterday if nothing logged yet today)
+export function streak(daySet) {
+  let d = today(); if (!daySet.has(d)) d = addDays(d, -1);
+  let n = 0; while (daySet.has(d)) { n++; d = addDays(d, -1); }
+  return n;
+}

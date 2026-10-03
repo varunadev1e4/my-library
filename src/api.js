@@ -41,3 +41,17 @@ async function sCall(method, body) {
   return j;
 }
 export const settings = { get: () => sCall('GET'), set: (key, value) => sCall('PUT', { key, value }) };
+
+async function jCall(method, qs = '', body) {
+  const r = await fetch('/api/journal' + qs, { method, headers: { 'content-type': 'application/json', 'x-pin': getPin() }, body: body ? JSON.stringify(body) : undefined });
+  if (r.status === 401) throw new Error('401');
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Request failed');
+  return j;
+}
+export const journal = {
+  list: () => jCall('GET'),
+  add: (e) => jCall('POST', '', e),
+  update: (id, f) => jCall('PATCH', `?id=${id}`, f),
+  remove: (id) => jCall('DELETE', `?id=${id}`),
+};

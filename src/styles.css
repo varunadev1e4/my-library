@@ -171,3 +171,32 @@ details.edit summary { cursor: pointer; color: var(--muted); }
 .person li { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
 .person li button { background: none; border: 0; padding: 0; text-align: left; text-decoration: underline; text-underline-offset: 3px; }
 .person .nav a { text-decoration: none; }
+
+/* v4 */
+.jf { display: grid; gap: 8px; } .jf .field > * { flex: 1 1 160px; min-width: 0; }
+.jf input[type="date"], .jf input[type="number"] { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; }
+.jday { display: grid; gap: 8px; }
+.entry { border-left: 3px solid var(--accent); padding: 2px 0 2px 12px; display: grid; gap: 4px; }
+.entry p { margin: 0; white-space: pre-wrap; }
+.eh { display: flex; gap: 10px; flex-wrap: wrap; align-items: baseline; } .eh strong { font: 500 19px/1.1 var(--display); }
+.ea { display: flex; gap: 14px; } .ea button { background: none; border: 0; padding: 0; font-size: 12px; color: var(--muted); text-decoration: underline; }
+.field .ef { flex: 1 1 220px; }
+.dialog .field input.rec { flex: 1 1 200px; }
+
+/* v5 */
+.chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 4px 2px 12px; font-size: 14px; background: var(--card); }
+.chip button { background: none; border: 0; color: var(--muted); font-size: 16px; line-height: 1; padding: 2px 6px; }
+.shelves { display: grid; gap: 8px; } .shelves form { display: flex; gap: 8px; } .shelves input { flex: 1; background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 9px 12px; min-width: 0; }
+.pills.shelf-row button.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.how { margin: 0; padding-left: 20px; font-size: 14px; color: var(--muted); display: grid; gap: 2px; } .how b { color: var(--fg); font-weight: 500; }
+.chk { display: inline-flex; gap: 6px; align-items: center; font-size: 14px; }
+.dialog input[type="file"] { padding: 8px; }
+.months { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; height: 120px; align-items: end; }
+.months div { display: grid; grid-template-rows: 1fr auto auto; height: 100%; justify-items: center; align-items: end; gap: 2px; }
+.months b { width: 100%; max-width: 28px; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; }
+.months span { font: 400 11px var(--mono); color: var(--muted); } .months em { font: normal 400 11px var(--sans); height: 14px; margin-top: -32px; position: relative; top: 0; }
+.mini { display: grid; grid-template-columns: repeat(auto-fill, minmax(56px, 1fr)); gap: 8px; }
+.mini button { background: var(--card); border: 1px solid var(--line); border-radius: 3px; padding: 0; aspect-ratio: 2 / 3; overflow: hidden; font-size: 10px; line-height: 1.1; padding: 4px; text-align: left; }
+.mini img { width: 100%; height: 100%; object-fit: cover; display: block; margin: -4px; width: calc(100% + 8px); height: calc(100% + 8px); }
+.lnk { background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; text-align: left; }

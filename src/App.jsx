@@ -4,11 +4,22 @@ import { today, addDays, currentLoan, overdueDays, remindLink, toCSV, download, 
 import Stats from './Stats.jsx';
 import Borrowers from './Borrowers.jsx';
 import Goal from './Goal.jsx';
+import Journal from './Journal.jsx';
+import GoodreadsImport from './GoodreadsImport.jsx';
+import YearInBooks from './YearInBooks.jsx';
 
 const IDLE_MINUTES = 15; // auto-lock after this many idle minutes; set to 0 to turn off
 
 const TABS = [['all', 'All'], ['read', 'Read'], ['reading', 'Reading'], ['to_read', 'To read'], ['lent', 'Lent out']];
-const GENRES = ['Fiction', 'Nonfiction', 'Sci-Fi', 'Mystery & Thriller', 'Fantasy', 'Romance', 'Biography', 'Self-help', 'Telugu', 'Other'];
+const GENRES = [
+  'Fiction', 'Literary Fiction', 'Classics', 'Historical Fiction', 'Sci-Fi', 'Fantasy', 'Mystery & Thriller', 'Crime', 'Horror', 'Romance', 'Humor',
+  'Short Stories', 'Poetry', 'Plays & Drama', 'Graphic Novels & Comics', 'Young Adult', "Children's", 'Mythology & Folklore',
+  'Nonfiction', 'Biography & Memoir', 'Autobiography', 'History', 'Politics & Society', 'Economics', 'Business', 'Finance & Investing', 'Leadership & Management',
+  'Self-help', 'Psychology', 'Philosophy', 'Spirituality & Religion', 'Science', 'Technology & Computing', 'Mathematics', 'Nature & Environment',
+  'Health & Fitness', 'Food & Cooking', 'Travel', 'Art & Design', 'Music & Film', 'Education', 'Law', 'Essays', 'Sports', 'Parenting & Family', 'Reference',
+  'Indian Literature', 'Telugu', 'Hindi', 'Other',
+];
+const pickGenre = (v) => (v === '__new' ? (window.prompt('Name of the new genre?') || '').trim() : v);
 
 const hash = (s) => { let h = 0; for (const c of s) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 const look = (b) => {
@@ -125,10 +136,11 @@ function F({ book, k, label, type = 'text', list, onPatch }) {
 }
 
 /* ---------- Detail ---------- */
-function Detail({ book, people, locations, onClose, onPatch, onDelete, onPrev, onNext }) {
+function Detail({ book, people, locations, allShelves, onClose, onPatch, onDelete, onPrev, onNext }) {
   const [who, setWho] = useState('');
   const [phone, setPhone] = useState('');
   const [days, setDays] = useState('14');
+  const [sh, setSh] = useState('');
   const [qt, setQt] = useState('');
   const [qp, setQp] = useState('');
   const [notes, setNotes] = useState(book.notes);
@@ -156,6 +168,7 @@ function Detail({ book, people, locations, onClose, onPatch, onDelete, onPrev, o
           <button className="x" onClick={onClose} aria-label="Close">×</button>
           <p className="label">{book.genre}{book.year ? ` · ${book.year}` : ''}{book.publisher ? ` · ${book.publisher}` : ''}</p>
           <h2 className="display">{book.title}</h2>
+          {book.series && <p className="label">{book.series}</p>}
           <p className="author">{book.author}</p>
           {book.location && <p className="label">Shelf: {book.location}</p>}
 
@@ -163,8 +176,9 @@ function Detail({ book, people, locations, onClose, onPatch, onDelete, onPrev, o
             <select value={book.status} onChange={(e) => setStatus(e.target.value)} aria-label="Reading status">
               <option value="read">Read</option><option value="reading">Reading now</option><option value="to_read">On my read list</option>
             </select>
-            <select value={book.genre} onChange={(e) => onPatch(book.id, { genre: e.target.value })} aria-label="Genre">
+            <select value={book.genre} onChange={(e) => { const g = pickGenre(e.target.value); if (g) onPatch(book.id, { genre: g }); }} aria-label="Genre">
               {[...new Set([book.genre, ...GENRES])].map((g) => <option key={g}>{g}</option>)}
+              <option value="__new">+ Add new genre…</option>
             </select>
             <span className="stars" role="group" aria-label="Rating">
               {[1, 2, 3, 4, 5].map((n) => <button key={n} className={n <= book.rating ? 'on' : ''} onClick={() => onPatch(book.id, { rating: book.rating === n ? 0 : n })} aria-label={`${n} star`}>★</button>)}
@@ -187,9 +201,9 @@ function Detail({ book, people, locations, onClose, onPatch, onDelete, onPrev, o
               <select value={book.priority || ''} onChange={(e) => onPatch(book.id, { priority: e.target.value })} aria-label="Priority">
                 <option value="">Priority: none</option><option value="up_next">Up next</option><option value="someday">Someday</option>
               </select>
-              <F book={book} k="recommended_by" label="Recommended by" onPatch={onPatch} />
             </div>
           )}
+          <div className="field"><F book={book} k="recommended_by" label="Recommended by" onPatch={onPatch} /></div>
 
           <section className="lend">
             <p className="label">Lending</p>
@@ -219,6 +233,17 @@ function Detail({ book, people, locations, onClose, onPatch, onDelete, onPrev, o
           </section>
 
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} onBlur={() => notes !== book.notes && onPatch(book.id, { notes })} placeholder="Notes, thoughts, quotes…" rows={4} />
+          <section className="shelves">
+            <p className="label">Shelves</p>
+            <div className="chips">
+              {(book.shelves || []).map((s) => <span key={s} className="chip">{s}<button onClick={() => onPatch(book.id, { shelves: book.shelves.filter((x) => x !== s) })} aria-label={`Remove from ${s}`}>×</button></span>)}
+            </div>
+            <form onSubmit={(e) => { e.preventDefault(); const v = sh.trim().toLowerCase(); if (v && !(book.shelves || []).includes(v)) onPatch(book.id, { shelves: [...(book.shelves || []), v] }); setSh(''); }}>
+              <input value={sh} list="shelf-list" onChange={(e) => setSh(e.target.value)} placeholder="Add to a shelf, e.g. favourites" />
+              <datalist id="shelf-list">{allShelves.map((s) => <option key={s} value={s} />)}</datalist>
+              <button className="btn" type="submit">Add</button>
+            </form>
+          </section>
           <section className="quotes">
             <p className="label">Quotes</p>
             {(book.quotes || []).map((x, i) => (
@@ -244,6 +269,10 @@ function Detail({ book, people, locations, onClose, onPatch, onDelete, onPrev, o
               <F book={book} k="location" label="Location (e.g. Bedroom shelf 2)" list="locs" onPatch={onPatch} />
               <datalist id="locs">{locations.map((l) => <option key={l} value={l} />)}</datalist>
               <F book={book} k="publisher" label="Publisher" onPatch={onPatch} />
+              <F book={book} k="series" label="Series (e.g. Dune #1)" onPatch={onPatch} />
+              <F book={book} k="binding" label="Binding (Paperback…)" onPatch={onPatch} />
+              <F book={book} k="isbn" label="ISBN" onPatch={onPatch} />
+              <F book={book} k="read_count" label="Times read" type="number" onPatch={onPatch} />
               <F book={book} k="cover" label="Cover image URL" onPatch={onPatch} />
             </div>
           </details>
@@ -265,6 +294,7 @@ function AddDialog({ books, genres, onClose, onAdded }) {
   const [res, setRes] = useState([]);
   const [status, setStatus] = useState('read');
   const [genre, setGenre] = useState('Fiction');
+  const [recBy, setRecBy] = useState('');
   const [mode, setMode] = useState('one');
   const [bulk, setBulk] = useState('');
   const [progress, setProgress] = useState('');
@@ -278,7 +308,7 @@ function AddDialog({ books, genres, onClose, onAdded }) {
   }, [q, mode]);
 
   async function add(item) {
-    try { const [row] = await api.add({ ...item, status, genre }); onAdded([row]); onClose(); } catch (e) { setErr(e.message); }
+    try { const [row] = await api.add({ ...item, status, genre, recommended_by: recBy.trim() }); onAdded([row]); onClose(); } catch (e) { setErr(e.message); }
   }
   async function importBulk() {
     const lines = bulk.split('\n').map((l) => l.trim()).filter(Boolean);
@@ -288,7 +318,7 @@ function AddDialog({ books, genres, onClose, onAdded }) {
       const [title, author = ''] = lines[i].split(/\s+[-–|]\s+/);
       let hit = null;
       try { hit = (await searchOpenLibrary(`${title} ${author}`.trim()))[0]; } catch {}
-      rows.push({ title: hit?.title || title, author: hit?.author || author, cover: hit?.cover || '', year: hit?.year || null, publisher: hit?.publisher || '', status, genre });
+      rows.push({ title: hit?.title || title, author: hit?.author || author, cover: hit?.cover || '', year: hit?.year || null, publisher: hit?.publisher || '', status, genre, recommended_by: recBy.trim() });
     }
     const seen = new Set(); const fresh = rows.filter((r) => { const k = r.title.toLowerCase(); if (has(r.title) || seen.has(k)) return false; seen.add(k); return true; });
     const skipped = rows.length - fresh.length;
@@ -314,7 +344,8 @@ function AddDialog({ books, genres, onClose, onAdded }) {
           <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Status">
             <option value="read">Already read</option><option value="reading">Reading now</option><option value="to_read">Read list</option>
           </select>
-          <select value={genre} onChange={(e) => setGenre(e.target.value)} aria-label="Genre">{[...new Set([...GENRES, ...genres])].map((g) => <option key={g}>{g}</option>)}</select>
+          <select value={genre} onChange={(e) => { const g = pickGenre(e.target.value); if (g) setGenre(g); }} aria-label="Genre">{[...new Set([genre, ...GENRES, ...genres])].map((g) => <option key={g}>{g}</option>)}<option value="__new">+ Add new genre…</option></select>
+          <input className="rec" value={recBy} onChange={(e) => setRecBy(e.target.value)} placeholder="Recommended by (optional)" aria-label="Recommended by" />
         </div>
         {mode === 'one' ? (
           <>
@@ -354,7 +385,11 @@ export default function App() {
   const [view, setView] = useState('shelf');
   const [stats, setStats] = useState(false);
   const [borrowers, setBorrowers] = useState(false);
-  const [goal, setGoal] = useState(0);
+  const [goalData, setGoalData] = useState({ target: 0, byYear: {} });
+  const [journalOpen, setJournalOpen] = useState(false);
+  const [shelf, setShelf] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [yearOpen, setYearOpen] = useState(false);
   const [theme, setTheme] = useState(() => localStorage.getItem('lib-theme') || 'auto');
   useEffect(() => {
     const el = document.documentElement;
@@ -364,7 +399,7 @@ export default function App() {
   const cycleTheme = () => setTheme((t) => (t === 'auto' ? 'light' : t === 'light' ? 'dark' : 'auto'));
 
   useEffect(() => { if (getPin()) api.list().then(setBooks).catch(() => setPin('')); }, []);
-  useEffect(() => { if (books) settings.get().then((s) => setGoal(s.goal?.target || 0)).catch(() => {}); }, [!!books]);
+  useEffect(() => { if (books) settings.get().then((s) => setGoalData({ target: s.goal?.target || 0, byYear: s.goal?.byYear || {} })).catch(() => {}); }, [!!books]);
   useEffect(() => {
     if (!books || !IDLE_MINUTES) return;
     const limit = IDLE_MINUTES * 60000; let t; let last = Date.now();
@@ -382,9 +417,10 @@ export default function App() {
   const shown = useMemo(() => (books || []).filter((b) => {
     if (tab === 'lent' ? !currentLoan(b) : tab !== 'all' && b.status !== tab) return false;
     if (genre && b.genre !== genre) return false;
+    if (shelf && !(b.shelves || []).includes(shelf)) return false;
     const n = q.trim().toLowerCase();
-    return !n || [b.title, b.author, b.genre, b.notes, b.location, b.recommended_by, (b.quotes || []).map((x) => x.t).join(' '), currentLoan(b)?.to].join(' ').toLowerCase().includes(n);
-  }).sort(SORTS[tab === 'lent' && sort === 'title' ? 'due' : sort]), [books, tab, genre, q, sort]);
+    return !n || [b.title, b.author, b.genre, b.notes, b.location, b.recommended_by, b.series, b.isbn, (b.shelves || []).join(' '), (b.quotes || []).map((x) => x.t).join(' '), currentLoan(b)?.to].join(' ').toLowerCase().includes(n);
+  }).sort(SORTS[tab === 'lent' && sort === 'title' ? 'due' : sort]), [books, tab, genre, shelf, q, sort]);
 
   if (!books) return <PinGate onOk={setBooks} theme={theme} cycleTheme={cycleTheme} />;
 
@@ -398,11 +434,17 @@ export default function App() {
   const lentCount = books.filter(currentLoan).length;
   const lateCount = books.filter(overdueDays).length;
   const locations = [...new Set(books.map((b) => b.location).filter(Boolean))].sort();
+  const allShelves = [...new Set(books.flatMap((b) => b.shelves || []))].sort();
+  const goalYear = today().slice(0, 4);
+  const goalTarget = goalData.byYear[goalYear] ?? goalData.target ?? 0; // new year: last goal carries over until you change it
+  const goalCarried = goalData.byYear[goalYear] == null && goalTarget > 0;
   const setGoalPrompt = () => {
-    const t = window.prompt(`How many books do you want to finish in ${new Date().getFullYear()}?`, goal || 24);
+    const t = window.prompt(`How many books do you want to finish in ${goalYear}?`, goalTarget || 24);
     if (t === null) return;
-    const n = Math.max(0, parseInt(t, 10) || 0); setGoal(n);
-    settings.set('goal', { target: n }).catch((e) => flash('Could not save goal: ' + e.message));
+    const n = Math.max(0, parseInt(t, 10) || 0);
+    const next = { target: n, byYear: { ...goalData.byYear, [goalYear]: n } };
+    setGoalData(next);
+    settings.set('goal', next).catch((e) => flash('Could not save goal: ' + e.message));
   };
   const people = {}; books.forEach((b) => (b.loans || []).forEach((l) => { if (l.to && (l.phone || !(l.to in people))) people[l.to] = l.phone || people[l.to] || ''; }));
   const pick = () => { const all = books.filter((b) => b.status === 'to_read'); const next = all.filter((b) => b.priority === 'up_next'); const pool = next.length ? next : all; if (!pool.length) return flash('Your read list is empty. Add books with "Read list" status.'); setOpenId(pool[Math.floor(Math.random() * pool.length)].id); };
@@ -413,7 +455,7 @@ export default function App() {
         <p className="label">A personal archive</p>
         <h1 className="display">My library</h1>
         <p className="label">{books.length} volumes{lentCount ? ` · ${lentCount} lent out` : ''}{lateCount ? ` · ${lateCount} overdue` : ''}</p>
-        <Goal books={books} target={goal} onSet={setGoalPrompt} />
+        <Goal books={books} target={goalTarget} year={goalYear} carried={goalCarried} onSet={setGoalPrompt} />
         <div className="bar">
           <input className="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title, author, notes, borrower…" aria-label="Search" />
           <button className="btn primary" onClick={() => setAdding(true)}>Add books</button>
@@ -424,6 +466,9 @@ export default function App() {
           <select value={sort} onChange={(e) => setSort(e.target.value)} aria-label="Sort by">{SORT_LABELS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}</select>
           <button className="btn" onClick={() => setView(view === 'shelf' ? 'grid' : 'shelf')}>{view === 'shelf' ? 'Grid view' : 'Shelf view'}</button>
           <button className="btn" onClick={pick}>Pick my next read</button>
+          <button className="btn" onClick={() => setJournalOpen(true)}>Journal</button>
+          <button className="btn" onClick={() => setYearOpen(true)}>Year in books</button>
+          <button className="btn" onClick={() => setImporting(true)}>Import Goodreads</button>
           <button className="btn" onClick={() => setBorrowers(true)}>Borrowers</button>
           <button className="btn" onClick={() => setStats(true)}>Stats</button>
           <button className="btn" onClick={() => download(`library-${today()}.csv`, toCSV(books), 'text/csv')}>Export CSV</button>
@@ -436,15 +481,24 @@ export default function App() {
           <button className={!genre ? 'on' : ''} onClick={() => setGenre('')}>All genres</button>
           {genres.map((g) => <button key={g} className={genre === g ? 'on' : ''} onClick={() => setGenre(genre === g ? '' : g)}>{g}</button>)}
         </nav>
+        {allShelves.length > 0 && (
+          <nav className="pills shelf-row no-scroll" aria-label="Shelves you created">
+            <button className={!shelf ? 'on' : ''} onClick={() => setShelf('')}>All shelves</button>
+            {allShelves.map((s) => <button key={s} className={shelf === s ? 'on' : ''} onClick={() => setShelf(shelf === s ? '' : s)}>{s}</button>)}
+          </nav>
+        )}
       </header>
 
       {shown.length ? (view === 'shelf' ? <Shelf books={shown} onOpen={setOpenId} /> : <Grid books={shown} onOpen={setOpenId} />) : (
         <p className="empty">{books.length ? 'No books match. Clear a filter or search.' : 'Your shelf is empty. Use Add books to paste your list or search one by one.'}</p>
       )}
 
-      {open && <Detail book={open} people={people} locations={locations} onClose={() => setOpenId(null)} onPatch={patch} onDelete={del} onPrev={() => step(-1)} onNext={() => step(1)} />}
+      {open && <Detail book={open} people={people} locations={locations} allShelves={allShelves} onClose={() => setOpenId(null)} onPatch={patch} onDelete={del} onPrev={() => step(-1)} onNext={() => step(1)} />}
       {adding && <AddDialog books={books} genres={genres} onClose={() => setAdding(false)} onAdded={(rows, skipped = 0) => { setBooks((bs) => [...rows, ...bs]); flash(`Added ${rows.length} book${rows.length > 1 ? 's' : ''}${skipped ? `, skipped ${skipped} duplicate${skipped > 1 ? 's' : ''}` : ''}`); }} />}
       {stats && <Stats books={books} onClose={() => setStats(false)} />}
+      {yearOpen && <YearInBooks books={books} goals={goalData.byYear} onOpen={setOpenId} onClose={() => setYearOpen(false)} />}
+      {importing && <GoodreadsImport books={books} genres={GENRES} onClose={() => setImporting(false)} onAdded={(rows, skipped = 0) => { setBooks((bs) => [...rows, ...bs]); flash(`Imported ${rows.length} book${rows.length === 1 ? '' : 's'}${skipped ? `, skipped ${skipped} duplicate${skipped > 1 ? 's' : ''}` : ''}`); }} />}
+      {journalOpen && <Journal books={books} onPatch={patch} onClose={() => setJournalOpen(false)} />}
       {borrowers && <Borrowers books={books} people={people} onOpen={setOpenId} onPatch={patch} onClose={() => setBorrowers(false)} />}
       {toast && <div className="toast" role="status">{toast}</div>}
     </div>
